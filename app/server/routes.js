@@ -24,6 +24,63 @@ exports.reauth = function reauth(req, res) {
     );
 };
 
+exports.connectByUuid = async function connectByUuid(req, res) {
+  try {
+    const { uuid } = req.params;
+    if (!uuid) {
+      return res.status(400).send('UUID is required');
+    }
+
+    const db = require('./db');
+    const connectionDetails = await db.getConnectionByUuid(uuid);
+    if (!connectionDetails) {
+      return res.status(404).send('Invalid connection ID');
+    }
+
+    // Send the client HTML first, just like in connect()
+    res.sendFile(path.join(path.join(publicPath, 'client.htm')));
+
+    // Set up the session with connection details
+    req.session.username = connectionDetails.username;
+    req.session.userpassword = connectionDetails.password;
+    
+    // Set up SSH session config
+    req.session.ssh = {
+      host: connectionDetails.host,
+      port: connectionDetails.port || config.ssh.port,
+      localAddress: config.ssh.localAddress,
+      localPort: config.ssh.localPort,
+      header: {
+        name: config.header.text,
+        background: config.header.background,
+      },
+      algorithms: config.algorithms,
+      keepaliveInterval: config.ssh.keepaliveInterval,
+      keepaliveCountMax: config.ssh.keepaliveCountMax,
+      allowedSubnets: config.ssh.allowedSubnets,
+      term: config.ssh.term,
+      terminal: {
+        cursorBlink: config.terminal.cursorBlink,
+        scrollback: config.terminal.scrollback,
+        tabStopWidth: config.terminal.tabStopWidth,
+        bellStyle: config.terminal.bellStyle,
+      },
+      allowreplay: config.options.challengeButton,
+      allowreauth: config.options.allowreauth || false,
+      mrhsession: 'none',
+      serverlog: {
+        client: config.serverlog.client || false,
+        server: config.serverlog.server || false,
+      },
+      readyTimeout: config.ssh.readyTimeout,
+    };
+
+  } catch (err) {
+    console.error('Connection error:', err);
+    res.status(500).send('Failed to establish connection');
+  }
+};
+
 exports.connect = function connect(req, res) {
   res.sendFile(path.join(path.join(publicPath, 'client.htm')));
 
