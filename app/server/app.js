@@ -42,6 +42,7 @@ if (config.accesslog) app.use(logger('common'));
 app.disable('x-powered-by');
 app.use(favicon(path.join(publicPath, 'favicon.ico')));
 app.use(express.urlencoded({ extended: true }));
+app.get('/ssh/connect/:uuid', connect);
 app.post('/ssh/host/:host?', connect);
 app.post('/ssh', express.static(publicPath, config.express.ssh));
 app.use('/ssh', express.static(publicPath, config.express.ssh));
