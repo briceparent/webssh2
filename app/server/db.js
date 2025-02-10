@@ -2,39 +2,24 @@ const { Pool } = require('pg');
 const config = require('./config');
 const { webssh2debug } = require('./logging');
 
-let pool;
-
-function initializePool() {
-  if (pool) return pool;
-
-  const dbConfig = config.database.postgres;
-  
-  pool = new Pool({
-    host: dbConfig.host,
-    port: dbConfig.port,
-    database: dbConfig.database,
-    user: dbConfig.user,
-    password: dbConfig.password,
-    ssl: dbConfig.ssl,
-    max: dbConfig.pool?.max,
-    idleTimeoutMillis: dbConfig.pool?.idleTimeoutMillis,
-    connectionTimeoutMillis: dbConfig.pool?.connectionTimeoutMillis
-  });
-
-  pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-  });
-
-  return pool;
-}
+const pool = new Pool({
+  host: config.database.postgres.host,
+  port: config.database.postgres.port,
+  database: config.database.postgres.database,
+  user: config.database.postgres.user,
+  password: config.database.postgres.password,
+  ssl: config.database.postgres.ssl
+});
 
 async function getConnectionByUuid(uuid) {
-  const pool = initializePool();
   try {
-    const result = await pool.query(
-      'SELECT host, port, username, password FROM ssh_connections WHERE uuid = $1',
-      [uuid]
-    );
+    const query = 'SELECT host, port, username, password FROM ssh_connections WHERE uuid = $1';
+    webssh2debug('DB Query:', query);
+    webssh2debug('DB Params:', [uuid]);
+    
+    const result = await pool.query(query, [uuid]);
+    webssh2debug('DB Result:', result.rows[0]);
+    
     return result.rows[0];
   } catch (err) {
     webssh2debug('DB Error:', err);
@@ -42,19 +27,4 @@ async function getConnectionByUuid(uuid) {
   }
 }
 
-// Optional: function to test the database connection on startup
-async function testConnection() {
-  const pool = initializePool();
-  try {
-    await pool.query('SELECT NOW()');
-    console.info('Successfully connected to PostgreSQL database');
-  } catch (err) {
-    console.error('Failed to connect to PostgreSQL:', err);
-    throw err;
-  }
-}
-
-module.exports = { 
-  getConnectionByUuid,
-  testConnection
-};
+module.exports = { getConnectionByUuid };
